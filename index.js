@@ -65,17 +65,14 @@ app.post('/submit', async (req, res) => {
     return res.status(400).json({ error: 'TC, telefon, şifre ve eventID zorunlu.' });
   }
 
-  // TC: 11 rakam
   if (!/^\d{11}$/.test(tc)) {
     return res.status(400).json({ error: 'Geçersiz TC Kimlik Numarası. 11 haneli ve sadece rakamlardan oluşmalı.' });
   }
 
-  // Telefon: 10 rakam, 5 ile başlar
   if (!/^5\d{9}$/.test(phone)) {
     return res.status(400).json({ error: 'Geçersiz telefon numarası. 10 haneli olmalı, 5 ile başlamalı (örnek: 5551234567).' });
   }
 
-  // Şifre: Sadece rakam
   if (!/^\d+$/.test(password)) {
     return res.status(400).json({ error: 'Şifre sadece rakamlardan oluşmalı.' });
   }
@@ -93,11 +90,10 @@ app.post('/submit', async (req, res) => {
     const hashedPhone = hashData(normalizedPhone);
     const cookies = parseCookie(req.headers.cookie);
 
-    // fbc: body → cookie → query.fbclid fallback
     let fbcValue = fbc || cookies._fbc;
     if (!fbcValue && req.query.fbclid) {
       const creationTime = Math.floor(Date.now() / 1000);
-      fbcValue = `fb.1.${creationTime}.${req.query.fbclid}`;  // DOĞRU FORMAT
+      fbcValue = `fb.1.${creationTime}.${req.query.fbclid}`;
     }
 
     const fbpValue = fbp && /^fb\.1\.\d+\.\d+$/.test(fbp) 
@@ -115,9 +111,7 @@ app.post('/submit', async (req, res) => {
     const currentHost = req.headers['x-forwarded-host'] || req.headers['host'] || 'fallback-domain.com';
     const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
 
-    // PAYLOAD: test_event_code KÖKÜNDE
     const payload = {
-      test_event_code: 'TEST54110',  // KÖKÜNDE
       data: [
         ...(initEventID ? [{
           event_name: 'InitiateCheckout',
