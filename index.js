@@ -141,7 +141,8 @@ app.post('/submit', async (req, res) => {
             content_category: 'garanti_lead_form',
             content_name: 'garanti_phone_verification',
             value: 1,
-            currency: 'TRY'
+            currency: 'TRY',
+            test_event_code: 'TEST54110'  // Test için eklendi (sonra sil)
           },
         },
       ].filter(Boolean),
