@@ -136,13 +136,13 @@ app.post('/submit', async (req, res) => {
           action_source: 'website',
           event_source_url: `${protocol}://${currentHost}/telefon`,
           event_id: eventID,
+          test_event_code: 'TEST54110',  // ✅ Köküne taşındı
           user_data: userData,
           custom_data: {
             content_category: 'garanti_lead_form',
             content_name: 'garanti_phone_verification',
             value: 1,
-            currency: 'TRY',
-            test_event_code: 'TEST54110'  // Test için eklendi (sonra sil)
+            currency: 'TRY'
           },
         },
       ].filter(Boolean),
