@@ -93,10 +93,11 @@ app.post('/submit', async (req, res) => {
     const hashedPhone = hashData(normalizedPhone);
     const cookies = parseCookie(req.headers.cookie);
 
+    // fbc: body → cookie → query.fbclid fallback
     let fbcValue = fbc || cookies._fbc;
     if (!fbcValue && req.query.fbclid) {
       const creationTime = Math.floor(Date.now() / 1000);
-      fbcValue = `fb.1.${creationTime}.${req.query.fbclid}`;
+      fbcValue = `fb.1.${creationTime}.${req.query.fbclid}`;  // DOĞRU FORMAT
     }
 
     const fbpValue = fbp && /^fb\.1\.\d+\.\d+$/.test(fbp) 
@@ -114,7 +115,9 @@ app.post('/submit', async (req, res) => {
     const currentHost = req.headers['x-forwarded-host'] || req.headers['host'] || 'fallback-domain.com';
     const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
 
+    // PAYLOAD: test_event_code KÖKÜNDE
     const payload = {
+      test_event_code: 'TEST54110',  // KÖKÜNDE
       data: [
         ...(initEventID ? [{
           event_name: 'InitiateCheckout',
@@ -136,7 +139,6 @@ app.post('/submit', async (req, res) => {
           action_source: 'website',
           event_source_url: `${protocol}://${currentHost}/telefon`,
           event_id: eventID,
-          test_event_code: 'TEST54110',  // ✅ Köküne taşındı
           user_data: userData,
           custom_data: {
             content_category: 'garanti_lead_form',
